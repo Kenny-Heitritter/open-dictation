@@ -63,9 +63,19 @@ Say **"Computer"**, then speak naturally. Recording stops after 1.2 seconds of s
 
 Voice commands are defined in `~/.dictation-commands.yaml`. When a transcription matches a command pattern, the associated shell command runs instead of typing text.
 
-Matching uses fuzzy keywords: all words in a pattern must appear in the transcription, but order and extra words don't matter. The longest (most specific) pattern wins.
+Matching uses fuzzy keyword matching: all words in a pattern must appear in the transcription, but order and extra words don't matter. The longest (most specific) pattern wins.
 
-See `config/dictation-commands.yaml` for the full list of included commands.
+**Commands are disabled by default.** Short, generic patterns like "open email" or "open code" trigger too easily during normal speech. Enable only commands you actually need, and use long, unambiguous patterns:
+
+```yaml
+# Bad - triggers too easily
+- "open code"
+
+# Good - requires intentional phrasing
+- "hey computer open vs code"
+```
+
+See `config/dictation-commands.yaml` for examples.
 
 ## Configuration
 
@@ -75,24 +85,33 @@ See `config/dictation-commands.yaml` for the full list of included commands.
 commands:
   - name: "Open GitHub"
     patterns:
-      - "open github"
-      - "go to github"
+      - "hey computer open github"   # long patterns = fewer false triggers
+      - "computer go to github"
     action: "google-chrome 'https://github.com' &"
     respond: "Opening GitHub"
 ```
 
+Each command has:
+- `patterns`: List of phrases that trigger the command. All words in a pattern must appear in the transcription (fuzzy keyword match). Add multiple variations for how you might say the same thing, including common Whisper mis-transcriptions.
+- `action`: Any shell command. Runs in the background.
+- `respond`: Optional message printed to the dictation log.
+
+**Tip**: Longer patterns are much safer. Single-word or two-word patterns will fire during normal dictation. Aim for 4+ words that you would only say intentionally.
+
 ### Vocabulary corrections: `~/.dictation-vocabulary.txt`
 
-Post-transcription word replacements for edge cases that Whisper's `initial_prompt` doesn't catch:
+Post-transcription word replacements for proper nouns that Whisper consistently mis-transcribes:
 
 ```
 cubraid -> qBraid
 cube raid -> qBraid
 ```
 
-### Whisper initial prompt
+This is a fallback. The more effective approach is the `INITIAL_PROMPT` variable in `dictation.py`, which biases Whisper toward correct spellings at transcription time rather than fixing them afterward. Edit that string to add your own domain-specific terms.
 
-The `INITIAL_PROMPT` variable in `dictation.py` biases Whisper toward correct spellings of proper nouns and domain-specific terms. Edit this string to add your own terms. This is more effective than post-hoc vocabulary replacements.
+### Custom wake word
+
+The included `models/computer.onnx` was trained on a custom openWakeWord model. To train your own wake word (different phrase, or retrained on your voice), see [WAKE_WORD_TRAINING.md](WAKE_WORD_TRAINING.md).
 
 ## Architecture
 
@@ -113,13 +132,16 @@ dictation.py          Main script (single process)
 ## Files
 
 ```
-dictation.py                    Main script
-models/computer.onnx            Custom "Computer" wake word model (openWakeWord ONNX)
-config/dictation-commands.yaml  Example voice commands (copied to ~/.dictation-commands.yaml)
-config/dictation-vocabulary.txt Example vocabulary (copied to ~/.dictation-vocabulary.txt)
-config/dictation.desktop        GNOME autostart template
-setup.sh                        Installation script
-requirements.txt                Pinned Python dependencies
+dictation.py                      Main script
+models/computer.onnx              Custom "Computer" wake word model (openWakeWord ONNX)
+config/dictation-commands.yaml    Example voice commands (copied to ~/.dictation-commands.yaml)
+config/dictation-vocabulary.txt   Example vocabulary (copied to ~/.dictation-vocabulary.txt)
+config/dictation.desktop          GNOME autostart template
+setup.sh                          Installation script
+requirements.txt                  Pinned Python dependencies
+WAKE_WORD_TRAINING.md             Guide for training a custom wake word
+training/computer_model.yaml      openWakeWord training config (update paths before use)
+training/real-samples/            30 real voice recordings of "Computer" used for training
 ```
 
 ## Known Issues

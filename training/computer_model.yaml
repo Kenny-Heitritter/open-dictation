@@ -1,0 +1,70 @@
+# Training config for "computer" wake word model
+# ================================================
+# Used with openWakeWord's train_model.py script.
+# See WAKE_WORD_TRAINING.md for full instructions.
+#
+# Before running, update the absolute paths below to match your system.
+
+model_name: "computer"
+
+target_phrase:
+  - "computer"
+
+# Words that sound similar but should NOT trigger activation
+custom_negative_phrases:
+  - "commuter"
+  - "compute"
+  - "computing"
+  - "computed"
+  - "competitor"
+  - "competer"
+
+# Synthetic data generation settings
+n_samples: 5000
+n_samples_val: 1000
+tts_batch_size: 50
+augmentation_batch_size: 16
+
+# ── Paths: update these to match your system ──────────────────────────
+
+# Path to the piper-sample-generator repo (cloned during training setup)
+piper_sample_generator_path: "/path/to/piper-sample-generator"
+
+# Where to write generated data and the final trained model
+output_dir: "/path/to/oww-training/output"
+
+# Room impulse responses for reverb augmentation (download separately - see WAKE_WORD_TRAINING.md)
+rir_paths:
+  - "/path/to/oww-training/mit_rirs"
+
+# Background audio for noise augmentation (download separately - see WAKE_WORD_TRAINING.md)
+background_paths:
+  - "/path/to/oww-training/fma"
+
+background_paths_duplication_rate:
+  - 1
+
+# Pre-computed negative features (download from openWakeWord releases - see WAKE_WORD_TRAINING.md)
+feature_data_files:
+  "ACAV100M_sample": "/path/to/oww-training/openwakeword_features_ACAV100M_2000_hrs_16bit.npy"
+
+# Validation data for false-positive estimation (download from openWakeWord releases)
+false_positive_validation_data_path: "/path/to/oww-training/validation_set_features.npy"
+
+# Augmentation rounds (reuse each synthetic sample with different augmentation)
+augmentation_rounds: 2
+
+# Batch composition for training
+batch_n_per_class:
+  "ACAV100M_sample": 1024
+  "adversarial_negative": 50
+  "positive": 50
+
+# Model architecture
+model_type: "dnn"
+layer_size: 32
+
+# Training parameters
+steps: 50000
+max_negative_weight: 1500
+target_false_positives_per_hour: 0.2
