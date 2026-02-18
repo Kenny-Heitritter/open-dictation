@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Virtual environment
+stt-env/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Whisper model cache (downloaded automatically by faster-whisper)
+# Models are stored in ~/.cache/huggingface/ by default
+
+# Logs
+*.log

@@ -1,0 +1,20 @@
+# Custom Dictation Vocabulary
+# ===========================
+#
+# Copy this file to ~/.dictation-vocabulary.txt and customize.
+#
+# Format: wrong_phrase -> correct_phrase
+# One mapping per line, case-insensitive matching.
+#
+# Note: Most proper nouns are handled by the initial_prompt in dictation.py
+# which biases Whisper toward correct spellings at transcription time.
+# This file catches any remaining edge cases that slip through.
+
+cubrade -> qBraid
+cubraid -> qBraid
+cube raid -> qBraid
+cue braid -> qBraid
+q-braid -> qBraid
+kuberete -> qBraid
+cubered -> qBraid
+cubitrc -> .cubitrc

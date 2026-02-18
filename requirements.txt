@@ -1,0 +1,27 @@
+# Core dependencies - pinned to known-working versions
+# Install with: pip install -r requirements.txt
+#
+# Note: PyAudio requires portaudio19-dev headers. See setup.sh.
+
+# STT engine
+RealtimeSTT==0.3.0
+faster-whisper==1.0.3
+
+# PyTorch (CUDA 12.1) - GPU acceleration
+torch==2.3.1
+torchaudio==2.3.1
+
+# Wake word detection
+openwakeword==0.6.0
+onnxruntime==1.19.2
+tflite-runtime==2.14.0
+
+# Audio
+PyAudio==0.2.14
+webrtcvad==2.0.10
+
+# Push-to-talk keyboard listener
+pynput==1.8.1
+
+# Voice commands config
+PyYAML==6.0.3

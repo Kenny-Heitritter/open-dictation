@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Dictation
+Comment=Local speech-to-text dictation with wake word and push-to-talk
+Exec=VENV_PATH/bin/python -u REPO_PATH/dictation.py
+Terminal=false
+Hidden=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=10

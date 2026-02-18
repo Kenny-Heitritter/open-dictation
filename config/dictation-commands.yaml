@@ -1,0 +1,191 @@
+# Voice Commands Configuration
+# ============================
+#
+# Copy this file to ~/.dictation-commands.yaml and customize.
+#
+# Each command has:
+#   patterns:  List of phrases that trigger this command (case-insensitive).
+#              Whisper may transcribe slightly differently each time, so
+#              add multiple variations of how you might say it.
+#   action:    Shell command to execute.
+#   respond:   Optional message to print (future: TTS will speak this).
+#
+# Matching:
+#   - All words in a pattern must appear in the transcription (fuzzy keyword match)
+#   - Matching is case-insensitive and ignores punctuation
+#   - Longest (most specific) matching pattern wins
+#   - Add common Whisper mis-hearings as extra patterns
+
+commands:
+
+  # ── Email ──────────────────────────────────────────────────────────
+  - name: "Open qBraid email"
+    patterns:
+      - "open my qbraid email"
+      - "open qbraid email"
+      - "open cubraid email"
+      - "open q braid email"
+      - "check my qbraid email"
+      - "check qbraid email"
+      - "my qbraid email"
+      - "qbraid email"
+      - "cubraid email"
+      - "keyword email"
+      - "kuberete email"
+      - "cubered email"
+      - "qbert email"
+      - "q braid email"
+      - "cube raid email"
+    action: "google-chrome --profile-directory='Profile 1' 'https://mail.google.com' &"
+    respond: "Opening qBraid email"
+
+  - name: "Open personal email"
+    patterns:
+      - "open my personal email"
+      - "open my email"
+      - "open personal email"
+      - "open gmail"
+      - "check my email"
+      - "check my personal email"
+    action: "google-chrome --profile-directory='Default' 'https://mail.google.com' &"
+    respond: "Opening personal email"
+
+  # ── Calendar ───────────────────────────────────────────────────────
+  - name: "Open qBraid calendar"
+    patterns:
+      - "open my qbraid calendar"
+      - "open qbraid calendar"
+      - "open cubraid calendar"
+      - "open q braid calendar"
+      - "check my qbraid calendar"
+      - "my qbraid calendar"
+      - "qbraid calendar"
+      - "cubraid calendar"
+      - "keyword calendar"
+      - "kuberete calendar"
+      - "cubered calendar"
+      - "qbert calendar"
+    action: "google-chrome --profile-directory='Profile 1' 'https://calendar.google.com' &"
+    respond: "Opening qBraid calendar"
+
+  - name: "Open personal calendar"
+    patterns:
+      - "open my personal calendar"
+      - "open my calendar"
+      - "open calendar"
+      - "check my calendar"
+    action: "google-chrome --profile-directory='Default' 'https://calendar.google.com' &"
+    respond: "Opening personal calendar"
+
+  # ── Websites ───────────────────────────────────────────────────────
+  - name: "Open GitHub"
+    patterns:
+      - "open github"
+      - "open git hub"
+      - "go to github"
+    action: "google-chrome --profile-directory='Profile 1' 'https://github.com' &"
+    respond: "Opening GitHub"
+
+  - name: "Open YouTube"
+    patterns:
+      - "open youtube"
+      - "open you tube"
+      - "go to youtube"
+    action: "google-chrome --profile-directory='Default' 'https://youtube.com' &"
+    respond: "Opening YouTube"
+
+  # ── Applications ───────────────────────────────────────────────────
+  - name: "Open terminal"
+    patterns:
+      - "open terminal"
+      - "open a terminal"
+      - "new terminal"
+      - "launch terminal"
+    action: "gnome-terminal &"
+    respond: "Opening terminal"
+
+  - name: "Open file manager"
+    patterns:
+      - "open file manager"
+      - "open files"
+      - "open file browser"
+      - "open nautilus"
+    action: "nautilus ~ &"
+    respond: "Opening file manager"
+
+  - name: "Open Slack"
+    patterns:
+      - "open slack"
+      - "launch slack"
+      - "go to slack"
+    action: "slack &"
+    respond: "Opening Slack"
+
+  - name: "Open Discord"
+    patterns:
+      - "open discord"
+      - "launch discord"
+    action: "discord &"
+    respond: "Opening Discord"
+
+  - name: "Open Spotify"
+    patterns:
+      - "open spotify"
+      - "launch spotify"
+      - "play spotify"
+    action: "spotify &"
+    respond: "Opening Spotify"
+
+  - name: "Open VS Code"
+    patterns:
+      - "open vs code"
+      - "open vscode"
+      - "open visual studio code"
+      - "launch vs code"
+      - "open code"
+    action: "code &"
+    respond: "Opening VS Code"
+
+  # ── System ─────────────────────────────────────────────────────────
+  - name: "Lock screen"
+    patterns:
+      - "lock screen"
+      - "lock the screen"
+      - "lock my screen"
+      - "lock computer"
+      - "lock my computer"
+    action: "gnome-screensaver-command -l || xdg-screensaver lock"
+    respond: "Locking screen"
+
+  - name: "Take screenshot"
+    patterns:
+      - "take a screenshot"
+      - "take screenshot"
+      - "screenshot"
+      - "capture screen"
+    action: "gnome-screenshot &"
+    respond: "Taking screenshot"
+
+  - name: "Volume up"
+    patterns:
+      - "volume up"
+      - "turn up the volume"
+      - "louder"
+    action: "pactl set-sink-volume @DEFAULT_SINK@ +10%"
+    respond: "Volume up"
+
+  - name: "Volume down"
+    patterns:
+      - "volume down"
+      - "turn down the volume"
+      - "quieter"
+    action: "pactl set-sink-volume @DEFAULT_SINK@ -10%"
+    respond: "Volume down"
+
+  - name: "Mute"
+    patterns:
+      - "mute"
+      - "mute audio"
+      - "mute sound"
+    action: "pactl set-sink-mute @DEFAULT_SINK@ toggle"
+    respond: "Toggling mute"
