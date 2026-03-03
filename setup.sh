@@ -124,7 +124,7 @@ PIP="${VENV_DIR}/bin/pip"
 VENV_PYTHON="${VENV_DIR}/bin/python"
 
 info "Upgrading pip..."
-"$PIP" install --upgrade pip setuptools wheel -q
+"$PIP" install --upgrade pip "setuptools<81" wheel -q
 
 # ── Install PyTorch (CUDA) ──────────────────────────────────────────
 if [ "$IS_LINUX" = true ]; then
@@ -187,17 +187,29 @@ fi
 
 # ── Install remaining Python dependencies ────────────────────────────
 info "Installing Python dependencies..."
-"$PIP" install \
-    RealtimeSTT==0.3.0 \
-    faster-whisper==1.0.3 \
-    openwakeword==0.6.0 \
-    onnxruntime==1.19.2 \
-    tflite-runtime==2.14.0 \
-    webrtcvad==2.0.10 \
-    pynput==1.8.1 \
-    PyYAML==6.0.3 \
-    "openai>=1.0.0" \
-    -q
+DEPS=(
+    RealtimeSTT==0.3.0
+    faster-whisper==1.0.3
+    openwakeword==0.6.0
+    onnxruntime==1.19.2
+    webrtcvad==2.0.10
+    pynput==1.8.1
+    PyYAML==6.0.3
+    "openai>=1.0.0"
+)
+
+# tflite-runtime has no macOS ARM64 wheels; openwakeword uses onnxruntime instead
+if [ "$IS_LINUX" = true ]; then
+    DEPS+=(tflite-runtime==2.14.0)
+fi
+
+"$PIP" install "${DEPS[@]}" -q
+
+# macOS Apple Silicon: install mlx-whisper for Metal GPU acceleration
+if [ "$IS_MAC" = true ] && [ "$(uname -m)" = "arm64" ]; then
+    info "Installing mlx-whisper for Metal GPU acceleration..."
+    "$PIP" install mlx-whisper -q
+fi
 
 # ── Install agent mode dependencies (optional) ──────────────────────
 info "Installing agent mode dependencies..."
