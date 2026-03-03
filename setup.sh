@@ -24,7 +24,17 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_DIR="${REPO_DIR}/stt-env"
-PYTHON="${PYTHON:-python3.9}"
+if [ -z "${PYTHON:-}" ]; then
+    if command -v python3.9 &>/dev/null; then
+        PYTHON="python3.9"
+    elif command -v python3.10 &>/dev/null; then
+        PYTHON="python3.10"
+    elif command -v python3.11 &>/dev/null; then
+        PYTHON="python3.11"
+    else
+        PYTHON="python3"
+    fi
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -52,23 +62,41 @@ done
 # ── Pre-flight checks ───────────────────────────────────────────────
 info "Checking prerequisites..."
 
+OS="$(uname -s)"
+IS_MAC=false
+IS_LINUX=false
+if [ "$OS" = "Darwin" ]; then
+    IS_MAC=true
+elif [ "$OS" = "Linux" ]; then
+    IS_LINUX=true
+fi
+
+
 if ! command -v "$PYTHON" &>/dev/null; then
-    error "Python not found. Install python3.9: sudo apt install python3.9 python3.9-venv"
+    if [ "$IS_LINUX" = true ]; then
+        error "Python not found. Install python3: sudo apt install python3 python3-venv"
+    else
+        error "Python not found. Install python3: brew install python3"
+    fi
 fi
 
 PY_VERSION=$("$PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 info "Python version: ${PY_VERSION}"
 
-if ! command -v xdotool &>/dev/null; then
-    warn "xdotool not found. Install with: sudo apt install xdotool"
-fi
-
-if ! command -v xmodmap &>/dev/null; then
-    warn "xmodmap not found. Install with: sudo apt install x11-xserver-utils"
-fi
-
-if ! nvidia-smi &>/dev/null; then
-    warn "nvidia-smi not found. GPU acceleration may not work."
+if [ "$IS_LINUX" = true ]; then
+    if ! command -v xdotool &>/dev/null; then
+        warn "xdotool not found. Install with: sudo apt install xdotool"
+    fi
+    if ! command -v xmodmap &>/dev/null; then
+        warn "xmodmap not found. Install with: sudo apt install x11-xserver-utils"
+    fi
+    if ! nvidia-smi &>/dev/null; then
+        warn "nvidia-smi not found. GPU acceleration may not work."
+    fi
+elif [ "$IS_MAC" = true ]; then
+    if ! command -v brew &>/dev/null; then
+        warn "Homebrew not found. You may need it to install portaudio."
+    fi
 fi
 
 # ── Create venv ──────────────────────────────────────────────────────
@@ -99,14 +127,25 @@ info "Upgrading pip..."
 "$PIP" install --upgrade pip setuptools wheel -q
 
 # ── Install PyTorch (CUDA) ──────────────────────────────────────────
-info "Installing PyTorch with CUDA support..."
-"$PIP" install torch==2.3.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121 -q
+if [ "$IS_LINUX" = true ]; then
+    info "Installing PyTorch with CUDA support..."
+    "$PIP" install torch==2.3.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121 -q
+else
+    info "Installing PyTorch..."
+    "$PIP" install torch==2.3.1 torchaudio==2.3.1 -q
+fi
 
 # ── Install PyAudio (needs portaudio headers) ────────────────────────
 info "Installing PyAudio..."
 
 # Check if portaudio headers are available
-if pkg-config --exists portaudio-2.0 2>/dev/null || [ -f /usr/include/portaudio.h ]; then
+if [ "$IS_MAC" = true ]; then
+    if ! brew list portaudio &>/dev/null; then
+        info "Installing portaudio via brew..."
+        brew install portaudio || warn "Failed to install portaudio"
+    fi
+    "$PIP" install PyAudio==0.2.14 -q
+elif pkg-config --exists portaudio-2.0 2>/dev/null || [ -f /usr/include/portaudio.h ]; then
     "$PIP" install PyAudio==0.2.14 -q
 else
     warn "portaudio19-dev not found. Attempting workaround..."
@@ -157,7 +196,29 @@ info "Installing Python dependencies..."
     webrtcvad==2.0.10 \
     pynput==1.8.1 \
     PyYAML==6.0.3 \
+    "openai>=1.0.0" \
     -q
+
+# ── Install agent mode dependencies (optional) ──────────────────────
+info "Installing agent mode dependencies..."
+if command -v piper &>/dev/null; then
+    info "Piper TTS already installed"
+else
+    info "Piper TTS not found. For local TTS in agent mode, install piper-tts:"
+    if [ "$IS_MAC" = true ]; then
+        warn "  pip install piper-tts  (or brew install piper)"
+    else
+        warn "  pip install piper-tts"
+    fi
+fi
+
+info "Checking for Ollama (local LLM)..."
+if command -v ollama &>/dev/null; then
+    info "Ollama found. Agent mode will use local LLM by default."
+else
+    warn "Ollama not found. For local LLM in agent mode, install from: https://ollama.ai"
+    warn "  Then run: ollama pull llama3.2"
+fi
 
 # ── Patch RealtimeSTT signal handling ────────────────────────────────
 info "Patching RealtimeSTT for thread-safe signal handling..."
@@ -236,12 +297,14 @@ if [ "$DEPS_ONLY" = false ]; then
 fi
 
 # ── Set PulseAudio default source (Scarlett 2i2) ─────────────────────
-SCARLETT_SOURCE="alsa_input.usb-Focusrite_Scarlett_2i2_4th_Gen_S2W0760368328E-00.multichannel-input"
-if pactl list sources short 2>/dev/null | grep -q "$SCARLETT_SOURCE"; then
-    pactl set-default-source "$SCARLETT_SOURCE"
-    info "Set default audio source to Scarlett 2i2"
-else
-    warn "Scarlett 2i2 not detected. Set your default PulseAudio source manually."
+if [ "$IS_LINUX" = true ]; then
+    SCARLETT_SOURCE="alsa_input.usb-Focusrite_Scarlett_2i2_4th_Gen_S2W0760368328E-00.multichannel-input"
+    if pactl list sources short 2>/dev/null | grep -q "$SCARLETT_SOURCE"; then
+        pactl set-default-source "$SCARLETT_SOURCE"
+        info "Set default audio source to Scarlett 2i2"
+    else
+        warn "Scarlett 2i2 not detected. Set your default PulseAudio source manually."
+    fi
 fi
 
 # ── Done ─────────────────────────────────────────────────────────────

@@ -25,3 +25,17 @@ pynput==1.8.1
 
 # Voice commands config
 PyYAML==6.0.3
+
+# ── Agent mode (optional) ──────────────────────────────────
+# These are only needed if you run with --agent flag.
+# Requires Python >=3.10 (for qwen-tts / accelerate).
+
+# LLM client (works with Ollama, Groq, OpenAI - all OpenAI-compatible)
+openai>=1.0.0
+
+# Local TTS — Qwen3-TTS (GPU-accelerated, fully offline)
+qwen-tts>=0.1.0
+soundfile
+
+# Cloud TTS (optional - only if using ElevenLabs)
+# elevenlabs

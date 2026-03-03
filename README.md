@@ -1,6 +1,6 @@
 # local-dictation
 
-Local speech-to-text dictation for Linux with GPU acceleration. All processing runs on-device via an NVIDIA GPU. No data leaves the machine.
+Local speech-to-text dictation for Linux and macOS. Hardware acceleration is supported via NVIDIA CUDA (Linux) and Apple Silicon MPS (macOS). All processing runs on-device, and no data leaves the machine.
 
 ## Features
 
@@ -12,17 +12,26 @@ Local speech-to-text dictation for Linux with GPU acceleration. All processing r
 
 ## Requirements
 
+**Linux:**
 - Ubuntu 22.04 with X11 (not Wayland)
-- NVIDIA GPU with CUDA support (tested on RTX 3090)
-- Python 3.9
-- PulseAudio
+- NVIDIA GPU with CUDA support
 - System packages: `xdotool`, `xmodmap` (x11-xserver-utils), `portaudio19-dev`
+
+**macOS:**
+- macOS 12+ (Apple Silicon M1/M2/M3 recommended for best performance)
+- Homebrew (`brew`) for installing system dependencies
+
+**Common:**
+- Python 3.9+
 
 ## Installation
 
 ```bash
-# Install system dependencies (if you have sudo)
+# On Linux: Install system dependencies
 sudo apt install python3.9 python3.9-venv portaudio19-dev xdotool x11-xserver-utils
+
+# On macOS: Install Homebrew (if not already installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # Clone and run setup
 git clone <this-repo> ~/local-dictation
@@ -38,22 +47,24 @@ The setup script will:
 5. Patch RealtimeSTT's signal handling for thread safety
 6. Copy the wake word model into openwakeword's model directory
 7. Install config files to `~/.dictation-commands.yaml` and `~/.dictation-vocabulary.txt`
-8. Set up GNOME autostart
+8. Set up autostart (GNOME `.desktop` on Linux or `LaunchAgent` on macOS)
 
 ## Usage
 
 ```bash
-# Run manually
+# Dictation mode (default) - transcribed speech is typed at cursor
 ./stt-env/bin/python -u dictation.py
 
-# Or it starts automatically on GNOME login via ~/.config/autostart/dictation.desktop
+# Agent mode - transcribed speech goes to LLM, response is spoken back
+./stt-env/bin/python -u dictation.py --agent
+
+# Or it starts automatically on login (GNOME autostart or macOS LaunchAgent)
 ```
 
 ### Push-to-talk
 
-Hold the **Menu key** (right of Right Alt on most keyboards) and speak. Release to stop recording. The transcribed text is typed at the current cursor position via `xdotool type`.
-
-The Menu key is remapped to F24 on startup to prevent context menus from appearing. This remap persists until logout or manual `xmodmap` reset.
+- **Linux:** Hold the **Menu key** (right of Right Alt). The text is typed via `xdotool`. The Menu key is automatically remapped to F24 to prevent context menus.
+- **macOS:** Hold the **Right Option** key. The text is pasted via clipboard and `osascript` keystrokes. You will need to grant Terminal/Python *Accessibility* permissions in System Settings for the global hotkey to work.
 
 ### Wake word
 
@@ -113,26 +124,56 @@ This is a fallback. The more effective approach is the `INITIAL_PROMPT` variable
 
 The included `models/computer.onnx` was trained on a custom openWakeWord model. To train your own wake word (different phrase, or retrained on your voice), see [WAKE_WORD_TRAINING.md](WAKE_WORD_TRAINING.md).
 
+### Agent mode
+
+Run with `--agent` to enable voice-to-voice conversation with a local LLM. Your speech is transcribed, sent to the LLM, and the response is spoken back through your speakers.
+
+**Local-first (no API keys needed):**
+- **LLM:** [Ollama](https://ollama.ai) running locally (default model: `llama3.2`)
+- **TTS:** [Piper TTS](https://github.com/rhasspy/piper) for offline speech synthesis
+
+**Cloud backends (optional, via environment variables):**
+- `GROQ_API_KEY` - Use Groq for LLM inference
+- `OPENAI_API_KEY` - Use OpenAI for LLM inference
+- `ELEVENLABS_API_KEY` - Use ElevenLabs for TTS
+- `LLM_MODEL` - Override the default model name
+
+Voice commands still work in agent mode and take priority over LLM routing.
+
+Barge-in is supported: press the PTT key while the agent is speaking to immediately interrupt it and start a new recording.
+
 ## Architecture
 
 ```
-dictation.py          Main script (single process)
-  |
-  +-- RealtimeSTT     Manages VAD, streaming audio, wake words, Whisper
-  |     +-- faster-whisper (large-v2 on GPU for final, tiny.en for realtime)
-  |     +-- openWakeWord (custom computer.onnx model)
-  |     +-- Silero VAD + WebRTC VAD
-  |     +-- PyAudio (PulseAudio -> mic input)
-  |
-  +-- pynput           Keyboard listener for Menu key push-to-talk
-  +-- xdotool          Text injection at cursor position
-  +-- xmodmap          Menu key -> F24 remap
+dictation.py                Thin entry point
+dictation/
+  types.py                  Immutable state, events, actions (dataclasses)
+  state.py                  Pure state machine: (State, Event) -> (State, Actions)
+  conversation.py           Event loop: queue events, run state machine, dispatch I/O
+  tracer.py                 Per-turn latency instrumentation (saves to ~/.dictation-traces/)
+  agent.py                  Agent pipeline: LLM -> TTS -> speaker (streaming)
+  services/
+    text_output.py          Platform-aware text injection (xdotool / osascript)
+    hotkey.py               Push-to-talk listener (Menu key / Right Option)
+    commands.py             Voice commands + vocabulary corrections
+    llm.py                  LLM service (Ollama local / Groq / OpenAI)
+    tts.py                  TTS service (Piper local / ElevenLabs)
+tests/
+  test_state.py             23 unit tests for the pure state machine
+
+RealtimeSTT                 Manages VAD, streaming audio, wake words, Whisper
+  +-- faster-whisper        large-v2 on GPU for final, tiny.en for realtime
+  +-- openWakeWord          custom computer.onnx model
+  +-- Silero VAD + WebRTC VAD
+  +-- PyAudio               mic input
 ```
 
 ## Files
 
 ```
-dictation.py                      Main script
+dictation.py                      Entry point
+dictation/                        Core package (state machine + services)
+tests/test_state.py               State machine unit tests
 models/computer.onnx              Custom "Computer" wake word model (openWakeWord ONNX)
 config/dictation-commands.yaml    Example voice commands (copied to ~/.dictation-commands.yaml)
 config/dictation-vocabulary.txt   Example vocabulary (copied to ~/.dictation-vocabulary.txt)
@@ -146,8 +187,9 @@ training/real-samples/            30 real voice recordings of "Computer" used fo
 
 ## Known Issues
 
-- **X11 only**: Push-to-talk key detection (pynput) and text injection (xdotool) require X11. Wayland is not supported.
-- **Menu key remap**: `xmodmap` remaps don't survive logout. The script re-applies the remap on every startup.
+- **Linux X11 only**: On Linux, push-to-talk key detection and text injection require X11. Wayland is not supported.
+- **macOS Accessibility**: On macOS, the global hotkey requires Accessibility permissions for the Python process.
+- **Menu key remap (Linux)**: `xmodmap` remaps don't survive logout. The script re-applies the remap on every startup.
 - **ALSA/JACK warnings**: PyAudio's device enumeration triggers harmless ALSA/JACK error messages. These are suppressed by temporarily redirecting C-level stderr during initialization.
 - **RealtimeSTT signal bug**: RealtimeSTT calls `signal.signal()` from worker threads, which raises `ValueError` in Python. The setup script patches this automatically.
 - **Whisper hallucination on proper nouns**: Whisper may transcribe "qBraid" as various phonetic approximations. The `initial_prompt` + vocabulary file handle most cases, but unusual transcriptions may still occur.
