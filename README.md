@@ -69,7 +69,7 @@ ollama pull qwen3.5:9b
 
 ### Voice cloning
 
-Clone your voice so the agent responds in your voice:
+Clone any voice so the agent responds with it:
 
 ```bash
 python clone-voice.py                # full flow: record -> extract -> launch

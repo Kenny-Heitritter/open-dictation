@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-clone-voice.py -- Record your voice, build a clone prompt, launch the agent.
+clone-voice.py -- Record a voice sample, build a clone prompt, launch the agent.
 
 Three steps:
-  1. RECORD  - Records 10-20s of your voice via PulseAudio
+  1. RECORD  - Records 10-20s of a voice sample via PulseAudio
   2. EXTRACT - Builds a Qwen3-TTS voice clone prompt from the recording
-  3. LAUNCH  - Starts the dictation agent with your cloned voice
+  3. LAUNCH  - Starts the dictation agent with the cloned voice
 
 Usage:
   python clone-voice.py                    # Full flow: record -> extract -> launch
@@ -396,7 +396,7 @@ def launch_agent() -> None:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Record your voice, build a clone prompt, launch the agent.",
+        description="Record a voice sample, build a clone prompt, launch the agent.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
