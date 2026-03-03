@@ -19,7 +19,11 @@ Then grant Accessibility permission so the app can type for you:
 Run it:
 
 ```bash
-./stt-env/bin/python -u dictation.py
+./dictation.sh run            # Interactive (Ctrl+C to stop)
+./dictation.sh start          # Background daemon
+./dictation.sh stop           # Stop daemon
+./dictation.sh status         # Check if running
+./dictation.sh log            # Tail the log
 ```
 
 **Push-to-talk:** Hold **Right Option** (right of Right Cmd), speak, release. Text appears at your cursor.
@@ -40,7 +44,8 @@ cd open-dictation
 Run it:
 
 ```bash
-./stt-env/bin/python -u dictation.py
+./dictation.sh run            # Interactive (Ctrl+C to stop)
+./dictation.sh start          # Background daemon (systemd)
 ```
 
 **Push-to-talk:** Hold the **Menu key** (right of Right Alt), speak, release.
@@ -64,7 +69,7 @@ Talk to a local LLM and hear it respond. Requires [Ollama](https://ollama.ai).
 
 ```bash
 ollama pull qwen3.5:9b
-./stt-env/bin/python -u dictation.py --agent
+./dictation.sh run --agent
 ```
 
 ### Voice cloning
@@ -154,10 +159,24 @@ Key parameters in `dictation/conversation.py`:
 | `MAIN_MODEL` | large-v2 | Final transcription model. On Apple Silicon, mapped to `whisper-large-v3-turbo` via MLX. |
 | `REALTIME_MODEL` | tiny.en | Real-time preview model. |
 
+## Running as a Daemon
+
+Dictation can run in the background and auto-start on login.
+
+```bash
+./dictation.sh enable         # Enable auto-start on login
+./dictation.sh disable        # Disable auto-start
+```
+
+On macOS this installs a LaunchAgent; on Linux it creates a systemd user service. `setup.sh` enables autostart automatically.
+
+Logs: `~/Library/Logs/dictation/dictation.log` (macOS) or `journalctl --user -u dictation -f` (Linux).
+
 ## Architecture
 
 ```
 dictation.py                Thin entry point (--agent flag)
+dictation.sh                Daemon management (start/stop/restart/status/log/run)
 clone-voice.py              Voice cloning setup (record -> extract -> launch)
 correct-transcripts.py      Review and correct transcriptions for fine-tuning
 finetune-whisper.py         LoRA fine-tune Whisper + convert to CTranslate2

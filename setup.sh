@@ -296,16 +296,29 @@ if [ "$DEPS_ONLY" = false ]; then
     fi
 
     # ── Set up autostart ─────────────────────────────────────────────
-    info "Setting up GNOME autostart..."
-    AUTOSTART_DIR="$HOME/.config/autostart"
-    mkdir -p "$AUTOSTART_DIR"
-
-    sed \
-        -e "s|VENV_PATH|${VENV_DIR}|g" \
-        -e "s|REPO_PATH|${REPO_DIR}|g" \
-        "${REPO_DIR}/config/dictation.desktop" > "${AUTOSTART_DIR}/dictation.desktop"
-
-    info "Installed autostart entry at ${AUTOSTART_DIR}/dictation.desktop"
+    if [ "$IS_MAC" = true ]; then
+        info "Setting up macOS LaunchAgent..."
+        LOG_DIR="$HOME/Library/Logs/dictation"
+        mkdir -p "$HOME/Library/LaunchAgents" "$LOG_DIR"
+        sed \
+            -e "s|VENV_PATH|${VENV_DIR}|g" \
+            -e "s|REPO_PATH|${REPO_DIR}|g" \
+            -e "s|LOG_PATH|${LOG_DIR}|g" \
+            "${REPO_DIR}/config/com.dictation.agent.plist" \
+            > "$HOME/Library/LaunchAgents/com.dictation.agent.plist"
+        info "Installed LaunchAgent (starts on login)"
+        info "  Log: ${LOG_DIR}/dictation.log"
+        info "  Manage: ./dictation.sh start|stop|restart|status|log"
+    elif [ "$IS_LINUX" = true ]; then
+        info "Setting up GNOME autostart..."
+        AUTOSTART_DIR="$HOME/.config/autostart"
+        mkdir -p "$AUTOSTART_DIR"
+        sed \
+            -e "s|VENV_PATH|${VENV_DIR}|g" \
+            -e "s|REPO_PATH|${REPO_DIR}|g" \
+            "${REPO_DIR}/config/dictation.desktop" > "${AUTOSTART_DIR}/dictation.desktop"
+        info "Installed autostart entry at ${AUTOSTART_DIR}/dictation.desktop"
+    fi
 fi
 
 # ── Set PulseAudio default source (Scarlett 2i2) ─────────────────────
@@ -323,12 +336,23 @@ fi
 echo ""
 info "Setup complete!"
 echo ""
-echo "  To run:     ${VENV_DIR}/bin/python -u ${REPO_DIR}/dictation.py"
-echo "  To test:    ${VENV_DIR}/bin/python -c 'from RealtimeSTT import AudioToTextRecorder; print(\"OK\")'"
+echo "  Quick start:"
+echo "    ./dictation.sh start          Start in background"
+echo "    ./dictation.sh run            Run interactively (Ctrl+C to stop)"
+echo ""
+echo "  Management:"
+echo "    ./dictation.sh stop           Stop the daemon"
+echo "    ./dictation.sh restart        Restart the daemon"
+echo "    ./dictation.sh status         Check if running"
+echo "    ./dictation.sh log            Tail the log file"
+echo "    ./dictation.sh enable         Auto-start on login"
+echo "    ./dictation.sh disable        Disable auto-start"
 echo ""
 echo "  Config files:"
 echo "    ~/.dictation-commands.yaml    Voice commands"
 echo "    ~/.dictation-vocabulary.txt   Word replacements"
-echo ""
-echo "  Dictation starts automatically on login (GNOME autostart)."
-echo "  To disable: remove ~/.config/autostart/dictation.desktop"
+if [ "$IS_MAC" = true ]; then
+    echo ""
+    echo "  macOS: Grant Accessibility permission to your terminal app:"
+    echo "    System Settings > Privacy & Security > Accessibility"
+fi

@@ -14,12 +14,19 @@ Usage:
   python -u dictation.py --agent      # Agent mode (Phase 2)
 """
 
+import signal
 import sys
 
 from dictation.conversation import run
 
 
+def _handle_sigterm(signum, frame):
+    """Translate SIGTERM (from launchctl unload) into SystemExit for clean shutdown."""
+    raise SystemExit(0)
+
+
 def main():
+    signal.signal(signal.SIGTERM, _handle_sigterm)
     agent_mode = "--agent" in sys.argv
     run(agent_mode=agent_mode)
 
