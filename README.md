@@ -22,9 +22,9 @@ Run it:
 ./stt-env/bin/python -u dictation.py
 ```
 
-Hold **Right Option**, speak, release. Your speech is transcribed and typed at the cursor.
+**Push-to-talk:** Hold **Right Option** (right of Right Cmd), speak, release. Text appears at your cursor.
 
-You can also say **"Computer"** to activate hands-free -- no key required.
+**Wake word:** Say **"Computer"**, then speak naturally -- no key needed.
 
 > Apple Silicon Macs use the Metal GPU via [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper) for fast transcription. The first run downloads the model (~1.5 GB) which takes a minute; after that, transcriptions are under 1 second.
 
@@ -43,13 +43,17 @@ Run it:
 ./stt-env/bin/python -u dictation.py
 ```
 
-Hold the **Menu key** (right of Right Alt), speak, release. Requires X11 and an NVIDIA GPU with CUDA.
+**Push-to-talk:** Hold the **Menu key** (right of Right Alt), speak, release.
+
+**Wake word:** Say **"Computer"**, then speak naturally -- no key needed.
+
+Requires X11 and an NVIDIA GPU with CUDA.
 
 ---
 
-## How It Works
+## Features
 
-- **Push-to-talk**: Hold a key, speak, release -- text appears at your cursor
+- **Push-to-talk**: Hold Right Option (macOS) or Menu key (Linux), speak, release -- text appears at your cursor
 - **Wake word**: Say "Computer", then speak naturally -- no key needed
 - **Real-time preview**: See partial transcriptions as you speak
 - **Voice commands**: Trigger shell commands with your voice (configurable)
