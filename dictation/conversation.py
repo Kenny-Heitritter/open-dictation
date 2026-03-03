@@ -154,11 +154,32 @@ def run(agent_mode: bool = False) -> None:
             break
 
     # ── Build RealtimeSTT config ─────────────────────────────────
+    # macOS Apple Silicon: final transcription uses mlx-whisper on Metal GPU.
+    #   RealtimeSTT still loads a tiny CPU model for its subprocess (required
+    #   by its architecture) but we monkey-patch transcribe() to use MLX.
+    # Linux with NVIDIA GPU: cuda + float16 via faster-whisper (fastest)
+    # macOS Intel / other: cpu + int8 via faster-whisper
+    _use_mlx = IS_MAC and platform.machine() == "arm64"
+
+    if IS_LINUX:
+        _device = "cuda"
+        _compute = "float16"
+        _main_model = MAIN_MODEL
+    elif _use_mlx:
+        # RealtimeSTT subprocess gets tiny model (unused -- MLX handles final)
+        _device = "cpu"
+        _compute = "int8"
+        _main_model = "tiny.en"
+    else:
+        _device = "cpu"
+        _compute = "int8"
+        _main_model = MAIN_MODEL
+
     config = dict(
-        model=MAIN_MODEL,
+        model=_main_model,
         language="en",
-        compute_type="float16" if IS_LINUX else "int8",
-        device="cuda" if IS_LINUX else "auto",
+        compute_type=_compute,
+        device=_device,
         gpu_device_index=0,
         beam_size=1,
         initial_prompt=INITIAL_PROMPT,
@@ -211,11 +232,31 @@ def run(agent_mode: bool = False) -> None:
     else:
         print("Wake word: disabled (model not found)")
 
+    # macOS: check Accessibility permissions (needed for PTT and text paste)
+    if IS_MAC:
+        try:
+            from ApplicationServices import AXIsProcessTrusted
+            if not AXIsProcessTrusted():
+                sys.stdout.write(
+                    "\n*** Accessibility permission required ***\n"
+                    "Push-to-talk and text pasting need Accessibility access.\n"
+                    "Grant it in: System Settings > Privacy & Security > Accessibility\n"
+                    "Add your terminal app (e.g. Terminal, iTerm2), then restart.\n\n"
+                )
+                sys.stdout.flush()
+        except Exception:
+            pass
+
     ptt_key = "Right Option" if IS_MAC else "Menu key"
     model_label = MAIN_MODEL
     if "/" in MAIN_MODEL or MAIN_MODEL.startswith(os.path.expanduser("~")):
         model_label = f"{MAIN_MODEL} (fine-tuned)"
-    print(f"Main model: {model_label} (GPU float16)")
+    if _use_mlx:
+        from dictation.services.mlx_transcribe import _resolve_mlx_model
+        mlx_model_id = _resolve_mlx_model(MAIN_MODEL)
+        print(f"Main model: {mlx_model_id.split('/')[-1]} (Metal GPU via mlx-whisper)")
+    else:
+        print(f"Main model: {model_label} ({_device} {_compute})")
     print(f"Realtime: {REALTIME_MODEL}")
     print(f"Push-to-talk: {ptt_key} (hold to record)")
     if agent_mode:
@@ -229,6 +270,11 @@ def run(agent_mode: bool = False) -> None:
     # Create recorder (ALSA warnings are suppressed at the C level
     # by _suppress_alsa_noise above; no need to redirect stderr)
     recorder = AudioToTextRecorder(**config)
+
+    # macOS Apple Silicon: patch recorder to use mlx-whisper on Metal GPU
+    if _use_mlx:
+        from dictation.services.mlx_transcribe import patch_recorder_for_mlx
+        patch_recorder_for_mlx(recorder, MAIN_MODEL, INITIAL_PROMPT)
 
     # Set up PTT
     unbind_menu_key()

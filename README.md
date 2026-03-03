@@ -8,7 +8,7 @@ Local speech-to-text dictation and voice assistant for Linux and macOS. All proc
 - **Wake word**: Say "Computer" to activate hands-free dictation (custom openWakeWord model)
 - **Voice commands**: Spoken phrases trigger shell commands (defined in YAML config)
 - **Real-time preview**: Partial transcriptions shown as you speak (tiny.en model)
-- **Final transcription**: High-accuracy output from Whisper large-v2 on GPU
+- **Final transcription**: High-accuracy output from Whisper on GPU (Metal on macOS, CUDA on Linux)
 - **Agent mode**: Voice-to-voice conversation with a local LLM (Ollama) and TTS (Qwen3-TTS)
 - **Voice cloning**: Clone your voice for the agent's TTS responses
 - **Whisper fine-tuning**: Collect your speech data and fine-tune Whisper to recognize your vocabulary
@@ -21,8 +21,9 @@ Local speech-to-text dictation and voice assistant for Linux and macOS. All proc
 - System packages: `xdotool`, `xmodmap` (x11-xserver-utils), `portaudio19-dev`
 
 **macOS:**
-- macOS 12+ (Apple Silicon recommended)
+- macOS 12+ (Apple Silicon recommended for Metal GPU acceleration)
 - Homebrew for system dependencies
+- Accessibility permission for your terminal app (System Settings > Privacy & Security > Accessibility)
 
 **Common:**
 - Python 3.10+ (required for agent mode; dictation-only works with 3.9+)
@@ -39,7 +40,15 @@ cd open-dictation
 ./setup.sh
 ```
 
-The setup script creates a venv, installs PyTorch (with CUDA on Linux), RealtimeSTT, faster-whisper, openWakeWord, and other dependencies. It also patches RealtimeSTT's signal handling for thread safety and installs config files.
+The setup script creates a venv, installs PyTorch (with CUDA on Linux), RealtimeSTT, faster-whisper, openWakeWord, and other dependencies. On macOS Apple Silicon it also installs [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper) for Metal GPU-accelerated transcription. It also patches RealtimeSTT's signal handling for thread safety and installs config files.
+
+### macOS: grant Accessibility permission
+
+Push-to-talk and text pasting require Accessibility access. Add your terminal app (Terminal, iTerm2, etc.) in:
+
+**System Settings > Privacy & Security > Accessibility**
+
+Then restart the dictation process.
 
 For agent mode, create a separate Python 3.10 venv with the additional dependencies:
 
@@ -88,7 +97,7 @@ Voice data is saved to `~/.dictation-voice/` (recording, transcript, cached clon
 ### Push-to-talk
 
 - **Linux:** Hold the **Menu key** (right of Right Alt). Text is typed via `xdotool`. The Menu key is automatically remapped to F24 to prevent context menus.
-- **macOS:** Hold the **Right Option** key. Text is pasted via clipboard and `osascript`. Requires Accessibility permissions in System Settings.
+- **macOS:** Hold the **Right Option** key. Text is pasted via clipboard and Cmd+V (using the Quartz CGEvent API). Requires Accessibility permissions in System Settings.
 
 ### Wake word
 
@@ -166,7 +175,7 @@ This is a fallback. The more effective approach is the `INITIAL_PROMPT` in `dict
 | `TTS_CLONE_PROMPT` | (none) | Path to cached voice clone prompt (.pt file) |
 | `TTS_VOICE_SAMPLE` | (none) | Path to voice reference WAV for cloning |
 | `TTS_VOICE_SAMPLE_TRANSCRIPT` | (none) | Transcript of the voice reference recording |
-| `WHISPER_MODEL` | (auto) | Path to a CTranslate2 Whisper model, or a model name like `large-v2` |
+| `WHISPER_MODEL` | (auto) | Path to a CTranslate2 Whisper model, a model name like `large-v2`, or an MLX model repo like `mlx-community/whisper-large-v3-turbo` |
 | `DICTATION_TRAINING_DIR` | `~/.dictation-training` | Where training audio/transcript pairs are saved |
 
 ### Custom wake word
@@ -188,22 +197,29 @@ dictation/
   tracer.py                 Per-turn latency instrumentation (saves to ~/.dictation-traces/)
   agent.py                  Agent pipeline: LLM -> TTS -> speaker (streaming)
   services/
-    text_output.py          Platform-aware text injection (xdotool / osascript)
+    text_output.py          Platform-aware text injection (xdotool / CGEvent Cmd+V)
     hotkey.py               Push-to-talk listener (Menu key / Right Option)
     commands.py             Voice commands + vocabulary corrections
     llm.py                  LLM service (Ollama native API / Groq / OpenAI)
     tts.py                  TTS service (Qwen3-TTS with voice cloning / ElevenLabs)
     training_data.py        Auto-saves audio + transcript pairs for fine-tuning
+    mlx_transcribe.py       macOS Metal GPU transcription via mlx-whisper
 
 tests/
   test_state.py             Unit tests for the pure state machine
 
 RealtimeSTT                 Manages VAD, streaming audio, wake words, Whisper
-  +-- faster-whisper        large-v2 on GPU for final, tiny.en for realtime
+  +-- faster-whisper        Whisper on CUDA (Linux) / mlx-whisper on Metal (macOS)
   +-- openWakeWord          custom computer.onnx model
   +-- Silero VAD + WebRTC VAD
   +-- PyAudio               mic input
 ```
+
+### macOS transcription pipeline
+
+On Apple Silicon Macs, the final transcription uses [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper) which runs Whisper natively on the Metal GPU. RealtimeSTT still handles audio capture, VAD, wake word detection, and realtime preview (tiny.en on CPU). The default model is `whisper-large-v3-turbo`, which is both faster and more accurate than large-v2 on CPU.
+
+Standard faster-whisper model names are automatically mapped to their MLX equivalents (e.g. `large-v2` maps to `mlx-community/whisper-large-v3-turbo`). You can also specify an MLX model directly via `WHISPER_MODEL=mlx-community/whisper-small.en-mlx`.
 
 ## Files
 
@@ -235,17 +251,18 @@ Key parameters in `dictation/conversation.py`:
 | `wake_words_sensitivity` | 0.7 | Wake word detection threshold (0-1). Lower = more sensitive but more false triggers. |
 | `wake_word_timeout` | 30.0s | Max recording duration after wake word activation. |
 | `silero_sensitivity` | 0.4 | Voice activity detection sensitivity. |
-| `MAIN_MODEL` | large-v2 | Final transcription model. Auto-detected fine-tuned model takes priority. |
+| `MAIN_MODEL` | large-v2 | Final transcription model. On macOS Apple Silicon, mapped to `whisper-large-v3-turbo` via MLX. Auto-detected fine-tuned model takes priority. |
 | `REALTIME_MODEL` | tiny.en | Real-time preview model. Smaller = faster updates. |
 
 ## Known Issues
 
 - **Linux X11 only**: Push-to-talk and text injection require X11 on Linux. Wayland is not supported.
-- **macOS Accessibility**: The global hotkey requires Accessibility permissions for the Python process.
+- **macOS Accessibility**: Push-to-talk and text pasting require Accessibility permissions for the terminal app. The app will warn at startup if permission is missing.
 - **Menu key remap (Linux)**: `xmodmap` remaps don't survive logout. Re-applied on every startup.
 - **ALSA/JACK warnings**: Harmless ALSA warnings appear on stderr during startup. These are cosmetic.
 - **RealtimeSTT signal bug**: RealtimeSTT calls `signal.signal()` from worker threads. The setup script patches this.
 - **Whisper proper nouns**: Whisper may mis-transcribe domain-specific words. Use `INITIAL_PROMPT`, vocabulary corrections, or fine-tuning to address this.
+- **CTranslate2 no Metal**: The faster-whisper backend (CTranslate2) does not support Metal/MPS. On macOS Apple Silicon, mlx-whisper is used instead for GPU-accelerated transcription.
 
 ## License
 
