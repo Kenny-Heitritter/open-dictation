@@ -35,11 +35,7 @@ def send_escape_key() -> None:
     """Send an Escape keypress to dismiss context menus on PTT activation."""
     try:
         if IS_MAC:
-            subprocess.Popen(
-                ["osascript", "-e",
-                 'tell application "System Events" to key code 53'],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+            _cgevent_escape()
         else:
             subprocess.Popen(
                 ["xdotool", "key", "Escape"],
@@ -47,6 +43,24 @@ def send_escape_key() -> None:
             )
     except Exception:
         pass
+
+
+def _cgevent_escape() -> None:
+    """Simulate Escape keypress using Quartz CGEvent API."""
+    from Quartz import (
+        CGEventSourceCreate,
+        kCGEventSourceStateCombinedSessionState,
+        CGEventCreateKeyboardEvent,
+        CGEventPost,
+        kCGHIDEventTap,
+    )
+
+    # Virtual keycode 53 = Escape on macOS
+    src = CGEventSourceCreate(kCGEventSourceStateCombinedSessionState)
+    event_down = CGEventCreateKeyboardEvent(src, 53, True)
+    event_up = CGEventCreateKeyboardEvent(src, 53, False)
+    CGEventPost(kCGHIDEventTap, event_down)
+    CGEventPost(kCGHIDEventTap, event_up)
 
 
 def start_hotkey_listener(
