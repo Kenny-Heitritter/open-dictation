@@ -71,7 +71,7 @@ WAKE_WORD_MODEL_PATHS = [
 ]
 
 def _resolve_main_model() -> str:
-    """Use fine-tuned model if available, else stock large-v2."""
+    """Use fine-tuned model if available, else stock large-v3-turbo."""
     override = os.environ.get("WHISPER_MODEL", "")
     if override:
         return override
@@ -80,7 +80,7 @@ def _resolve_main_model() -> str:
         os.path.join(finetuned, "model.bin")
     ):
         return finetuned
-    return "large-v2"
+    return "large-v3-turbo"
 
 
 MAIN_MODEL = _resolve_main_model()

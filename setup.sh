@@ -246,19 +246,21 @@ import re
 with open('${AUDIO_RECORDER}', 'r') as f:
     content = f.read()
 
-# Pattern: bare signal.signal(...SIG_IGN) lines that aren't already wrapped
-old = '            system_signal.signal(system_signal.SIGINT, system_signal.SIG_IGN)'
-new = '''        try:
-            system_signal.signal(system_signal.SIGINT, system_signal.SIG_IGN)
-        except ValueError:
-            pass  # not in main thread'''
-
 # Only patch if not already patched
 if 'except ValueError:' not in content:
-    content = content.replace(old, new)
-    with open('${AUDIO_RECORDER}', 'w') as f:
-        f.write(content)
-    print('Patched audio_recorder.py')
+    # Regex handles any indentation level
+    patched = re.sub(
+        r'^( *)system_signal\.signal\(system_signal\.SIGINT, system_signal\.SIG_IGN\)',
+        r'\1try:\n\1    system_signal.signal(system_signal.SIGINT, system_signal.SIG_IGN)\n\1except ValueError:\n\1    pass  # not in main thread',
+        content,
+        flags=re.MULTILINE,
+    )
+    if patched != content:
+        with open('${AUDIO_RECORDER}', 'w') as f:
+            f.write(patched)
+        print('Patched audio_recorder.py')
+    else:
+        print('No signal calls found to patch')
 else:
     print('Already patched')
 "

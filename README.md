@@ -131,7 +131,7 @@ cube raid -> qBraid
 
 | Variable | Default | Description |
 |---|---|---|
-| `WHISPER_MODEL` | (auto) | Whisper model name (`large-v2`, `small.en`) or MLX repo (`mlx-community/whisper-large-v3-turbo`) |
+| `WHISPER_MODEL` | (auto) | Whisper model name (`large-v3-turbo`, `small.en`) or MLX repo (`mlx-community/whisper-large-v3-turbo`) |
 | `LLM_MODEL` | `llama3.2` | Ollama model name for agent mode |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama API endpoint |
 | `GROQ_API_KEY` | (none) | Use Groq cloud for LLM instead of Ollama |
@@ -156,7 +156,7 @@ Key parameters in `dictation/conversation.py`:
 | `wake_words_sensitivity` | 0.7 | Wake word threshold (0-1). Lower = more sensitive, more false triggers. |
 | `wake_word_timeout` | 30.0s | Max recording time after wake word. |
 | `silero_sensitivity` | 0.4 | Voice activity detection sensitivity. |
-| `MAIN_MODEL` | large-v2 | Final transcription model. On Apple Silicon, mapped to `whisper-large-v3-turbo` via MLX. |
+| `MAIN_MODEL` | large-v3-turbo | Final transcription model. On Apple Silicon, uses MLX; on Linux, uses faster-whisper with CUDA. |
 | `REALTIME_MODEL` | tiny.en | Real-time preview model. |
 
 ## Running as a Daemon

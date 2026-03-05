@@ -45,7 +45,7 @@ MODELS_DIR = Path(os.environ.get(
 HF_CHECKPOINT_DIR = MODELS_DIR / "whisper-lora-merged"
 CT2_OUTPUT_DIR = MODELS_DIR / "whisper-finetuned"
 
-BASE_MODEL = "openai/whisper-large-v2"
+BASE_MODEL = "openai/whisper-large-v3-turbo"
 
 # ── Colors ───────────────────────────────────────────────────────────
 
@@ -116,7 +116,7 @@ def show_stats(samples: list[dict]) -> None:
 # ── Fine-tuning ──────────────────────────────────────────────────────
 
 def finetune(samples: list[dict], epochs: int = 3, lr: float = 1e-4) -> Path:
-    """Fine-tune Whisper large-v2 with LoRA on corrected samples."""
+    """Fine-tune Whisper large-v3-turbo with LoRA on corrected samples."""
     try:
         import torch
         from datasets import Audio, Dataset

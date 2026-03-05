@@ -12,7 +12,15 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV_DIR="${REPO_DIR}/stt-env"
+
+# Prefer dictation-env (Python 3.10+, agent mode support) over stt-env
+if [ -f "$HOME/dictation-env/bin/python" ]; then
+    VENV_DIR="$HOME/dictation-env"
+elif [ -f "${REPO_DIR}/stt-env/bin/python" ]; then
+    VENV_DIR="${REPO_DIR}/stt-env"
+else
+    VENV_DIR="${REPO_DIR}/stt-env"  # will fail with helpful message in _check_venv
+fi
 PYTHON="${VENV_DIR}/bin/python"
 
 OS="$(uname -s)"
